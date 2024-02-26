@@ -1,14 +1,22 @@
-from flask import Flask
+from flask import Flask, request
 from pymongo import MongoClient
+from flask_cors import CORS, cross_origin
+from PyPDF2 import PdfReader
 from models.jobs import Job
 import csv
+from utilities.ultilities import getKeyWords   
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 client = MongoClient("mongodb://mongodb:27017/")
 db = client["we_got_da_jobs"]
 jobs = db["jobs"]
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 def index():
     return "Hello World"
 
@@ -38,6 +46,29 @@ def insert_jobs_from_csv(csv_file):
                 job_title=row['Job_title']
             )
             jobs.insert_one(job.__dict__)
+
+@app.post("/upload")
+@cross_origin()
+def upload():
+    # Handle file upload
+    file = request.files["file"]
+
+    # Save file
+    file.save("uploads/" + file.filename)
+
+    # Read file
+    reader = PdfReader(file)
+    page = reader.pages[0]
+    text = page.extract_text()
+
+    # print(text)   
+
+    # Get keywords
+    keywords = getKeyWords(text)
+
+    print(keywords)     
+
+    return "File uploaded successfully"
 
 if __name__ == '__main__':
     # Insert data from CSV file
